@@ -1,46 +1,81 @@
 # Recipe: Nemotron-3-Super-NVFP4
-# Uses VLLM_CUTLASS for NVFP4
+# Uses Marlin backend (fixes broken CUTLASS FP4 on SM121/DGX Spark)
+# Optimized for solo mode with official HF Quick Start settings
+# NOTE: Model is pre-quantized NVFP4 — use --dtype auto, not --quantization fp4
 recipe_version: "1"
-name: Nemotron-3-Super-NVFP4-CUTLASS-Optimized
-description: vLLM serving Nemotron-3-Super-120B using CUTLASS kernels
+name: Nemotron-3-Super-NVFP4-Marlin
+description: vLLM serving Nemotron-3-Super-120B using Marlin FP4 backend (solo, MTP speculative decoding)
 
 model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4
-container: vllm-node
+container: vllm/vllm-openai:v0.20.0
 cluster_only: false
-solo_only: false
+solo_only: true
 
-# mods: 
-#   - mods/nemotron-super
+# Mods: nemotron-super for reasoning parser, marlin-nvfp4 for SM121 FP4 fix
+mods:
+  - mods/nemotron-super
+  - mods/marlin-nvfp4
 
 env:
+  VLLM_USE_FLASHINFER_MOE_FP4: 0
+  VLLM_NVFP4_GEMM_BACKEND: marlin
+  VLLM_TEST_FORCE_FP8_MARLIN: 1
   VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 
-container: vllm-node
 defaults:
   port: 8000
   host: 0.0.0.0
-  tensor_parallel: 2
-  gpu_memory_utilization: 0.8
-  max_model_len: 262144
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.9
+  max_model_len: 1048576
   max_num_seqs: 10
+
+# command: |
+#   vllm serve nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 \
+#   --dtype auto \
+#   --kv-cache-dtype fp8 \
+#   --moe-backend marlin \
+#   --mamba_ssm_cache_dtype float16 \
+#   --trust-remote-code \
+#   --gpu-memory-utilization {gpu_memory_utilization} \
+#   --max-model-len {max_model_len} \
+#   --max-num-seqs {max_num_seqs} \
+#   --enable-chunked-prefill \
+#   --enable-prefix-caching \
+#   --max-cudagraph-capture-size 128 \
+#   --host {host} \
+#   --port {port} \
+#   --load-format fastsafetensors \
+#   --enable-auto-tool-choice \
+#   --tool-call-parser qwen3_coder \
+#   --reasoning-parser-plugin /app/super_v3_reasoning_parser.py \
+#   --reasoning-parser super_v3 \
+#   --tensor-parallel-size {tensor_parallel} \
+#   --speculative-config '{"method":"mtp","num_speculative_tokens":3,"moe_backend":"triton"}' \
+#   --attention-backend TRITON_ATTN
 
 command: |
   vllm serve nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 \
-  --kv-cache-dtype fp8 \
-  --moe-backend cutlass \
-  --trust-remote-code \
   --gpu-memory-utilization {gpu_memory_utilization} \
   --max-model-len {max_model_len} \
   --max-num-seqs {max_num_seqs} \
-  --enable-prefix-caching \
   --host {host} \
   --port {port} \
-  --enable-auto-tool-choice \
-  --load-format fastsafetensors \
-  --tool-call-parser qwen3_coder \
-  --reasoning-parser nemotron_v3 \
-  --mamba_ssm_cache_dtype float32 \
-  --tensor-parallel-size {tensor_parallel} \
+  --reasoning-parser-plugin /app/super_v3_reasoning_parser.py \
+  --reasoning-parser super_v3 \
+  --speculative-config '{"method":"mtp","num_speculative_tokens":3,"moe_backend":"triton"}' \
   --attention-backend TRITON_ATTN \
-  --distributed-executor-backend ray
+  --async-scheduling \
+  --dtype auto \
+  --kv-cache-dtype fp8 \
+  --tensor-parallel-size 1 \
+  --pipeline-parallel-size 1 \
+  --data-parallel-size 1 \
+  --trust-remote-code \
+  --enable-chunked-prefill \
+  --moe-backend marlin \
+  --mamba_ssm_cache_dtype float16 \
+  --quantization fp4 \
+  --enable-auto-tool-choice \
+  --tool-call-parser qwen3_coder

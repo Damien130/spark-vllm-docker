@@ -1,10 +1,11 @@
 # Recipe: Nemotron-3-Nano-NVFP4
 # Nemotron-3-Nano model with NVFP4 quantization support
+# Uses Marlin backend (fixes broken CUTLASS FP4 on SM121/DGX Spark)
 # Currently can only be run in solo mode, cluster mode fails with error
 
 recipe_version: "1"
 name: Nemotron-3-Nano-NVFP4
-description: vLLM serving Nemotron-3-Nano-NVFP4 on a SINGLE NODE ONLY!
+description: vLLM serving Nemotron-3-Nano-NVFP4 on a SINGLE NODE ONLY! (Marlin backend)
 
 # HuggingFace model to download (optional, for --download-model)
 model: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
@@ -15,9 +16,16 @@ container: vllm-node
 # This model can only run on single node (solo)
 solo_only: true
 
-# No mods required
+# Mods: nemotron-nano for reasoning parser, marlin-nvfp4 for SM121 FP4 fix
 mods: 
   - mods/nemotron-nano
+  - mods/marlin-nvfp4
+
+# Environment variables for Marlin NVFP4 backend (fixes broken CUTLASS on SM121)
+env:
+  VLLM_USE_FLASHINFER_MOE_FP4: 0
+  VLLM_NVFP4_GEMM_BACKEND: marlin
+  VLLM_TEST_FORCE_FP8_MARLIN: 1
 
 # Default settings (can be overridden via CLI)
 defaults:
@@ -30,7 +38,7 @@ defaults:
 # The vLLM serve command template
 command: |
   vllm serve nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4  \
-     --moe-backend cutlass \
+     --moe-backend marlin \
      --max-model-len {max_model_len} \
      --port {port} --host {host} \
      --trust-remote-code \

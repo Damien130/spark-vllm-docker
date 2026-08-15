@@ -1,0 +1,51 @@
+recipe_version: "1"
+name: Qwen36-27B-NVFP4
+description: vLLM serving nvidia/Qwen3.6-27B-NVFP4
+
+# HuggingFace model to download (optional, for --download-model)
+model: nvidia/Qwen3.6-27B-NVFP4
+
+# Container image to use
+container: vllm/vllm-openai:nightly
+
+# Default settings (can be overridden via CLI)
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.8
+  max_model_len: 262144
+  max_num_batched_tokens: 16384
+
+# Marlin NVFP4 backend fix for SM121 (DGX Spark)
+# Replaces broken CUTLASS FP4 kernels — Marlin is 16% faster, 7 GB less memory
+env:
+#  VLLM_USE_FLASHINFER_MOE_FP4: 0
+#  VLLM_NVFP4_GEMM_BACKEND: marlin
+#  VLLM_TEST_FORCE_FP8_MARLIN: 1
+  HF_HOME: /hf_cache
+
+# Path to vLLM API key file (relative to spark-vllm-docker root)
+# This file is read at launch time and passed as VLLM_API_KEY env var to container
+api_key_file: ../.api-key
+
+# The vLLM serve command template
+#    --moe-backend marlin \
+command: |
+  vllm serve nvidia/Qwen3.6-27B-NVFP4 \
+    --quantization modelopt \
+    --host {host} \
+    --port {port} \
+    --max-model-len {max_model_len} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --speculative-config '{{"method":"mtp","num_speculative_tokens":1}}' \
+    --trust-remote-code \
+    --reasoning-parser qwen3 \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --enable-prefix-caching \
+    --enable-chunked-prefill \
+    --async-scheduling \
+    -tp {tensor_parallel} \
+    --api-key DDBCQyue3aVl4Tb9

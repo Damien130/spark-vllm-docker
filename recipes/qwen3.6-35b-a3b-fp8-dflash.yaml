@@ -23,13 +23,18 @@ defaults:
   port: 8000
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.8
+  gpu_memory_utilization: 0.75
   max_model_len: 262144
-  max_num_batched_tokens: 16384
+  max_num_batched_tokens: 32768
 
 # Environment variables
 env: 
   VLLM_MARLIN_USE_ATOMIC_ADD: 1
+  VLLM_SERVED_MODEL_NAME: qwen3.6-35b-a3b-nvfp4
+  CUTE_DSL_ARCH: sm_121a
+  HF_HOME: /hf_cache
+
+api_key_file: ../.api-key
 
 # The vLLM serve command template
 command: |
@@ -40,7 +45,7 @@ command: |
     --max-num-batched-tokens {max_num_batched_tokens} \
     --gpu-memory-utilization {gpu_memory_utilization} \
     --enable-auto-tool-choice \
-    --tool-call-parser qwen3_xml \
+    --tool-call-parser qwen3_coder \
     --reasoning-parser qwen3 \
     --load-format fastsafetensors \
     --attention-backend flash_attn \

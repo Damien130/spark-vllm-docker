@@ -4,8 +4,12 @@
 IMAGE_NAME="vllm-node"
 DEFAULT_CONTAINER_NAME="vllm_node"
 HF_CACHE_DIR="${HF_HOME:-$HOME/.cache/huggingface}"
+# HF_CACHE_MOUNT controls the internal mount path inside the container.
+# Default: /root/.cache/huggingface (backward compatible with spark-vllm-docker)
+# Set to /hf_cache for DGX Spark shared cache integration (see vllm-integration.md)
+HF_CACHE_MOUNT="${HF_CACHE_MOUNT:-/root/.cache/huggingface}"
 # Modify these if you want to pass additional docker args or set VLLM_SPARK_EXTRA_DOCKER_ARGS variable
-DOCKER_ARGS="-e NCCL_IGNORE_CPU_AFFINITY=1 -v $HF_CACHE_DIR:/root/.cache/huggingface"
+DOCKER_ARGS="-e NCCL_IGNORE_CPU_AFFINITY=1 -v $HF_CACHE_DIR:$HF_CACHE_MOUNT"
 
 # Append additional arguments from environment variable
 if [[ -n "$VLLM_SPARK_EXTRA_DOCKER_ARGS" ]]; then
@@ -45,6 +49,8 @@ MEM_SWAP_LIMIT_GB=""
 PIDS_LIMIT="4096"
 SHM_SIZE_GB="64"
 PORT_MAPPINGS=()
+API_KEY_FILE=""
+VLLM_API_KEY=""
 
 # Function to print usage
 usage() {
@@ -72,8 +78,9 @@ usage() {
     echo "  --mem-swap-limit-gb Memory+swap limit in GB (default: mem-limit + 10, only with --non-privileged)"
     echo "  --pids-limit    Process limit (default: 4096, only with --non-privileged)"
     echo "  --shm-size-gb   Shared memory size in GB (default: 64, only with --non-privileged)"
-    echo "  --config        Path to .env configuration file (default: .env in script directory)
-  --setup/--discover  Force autodiscovery and save configuration (even if .env exists)"
+    echo "  --api-key-file  Path to file containing vLLM API key (e.g. /mnt/llm/vllm/.api-key)"
+    echo "  --config        Path to .env configuration file (default: .env in script directory)"
+    echo "  --setup/--discover  Force autodiscovery and save configuration (even if .env exists)"
     echo "  action          start | stop | status | exec (Default: start). Not compatible with --launch-script."
     echo "  command         Command to run (only for 'exec' action). Not compatible with --launch-script."
     echo ""
@@ -139,6 +146,7 @@ while [[ "$#" -gt 0 ]]; do
         -d) DAEMON_MODE="true" ;;
         -h|--help) usage ;;
         --config) CONFIG_FILE="$2"; shift ;;
+        --api-key-file) API_KEY_FILE="$2"; shift ;;
         --setup|--discover) FORCE_DISCOVER=true; export FORCE_DISCOVER ;;
         start|stop|status) 
             if [[ -n "$LAUNCH_SCRIPT_PATH" ]]; then

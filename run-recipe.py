@@ -889,6 +889,12 @@ Examples:
         metavar="FILE",
         help="Path to .env configuration file (default: .env in script directory)",
     )
+    parser.add_argument(
+        "--api-key-file",
+        dest="api_key_file",
+        metavar="FILE",
+        help="Path to file containing vLLM API key (e.g. /mnt/llm/vllm/.api-key)",
+    )
 
     # Cluster discovery options
     discover_group = parser.add_argument_group("Cluster discovery")
@@ -1316,6 +1322,17 @@ Examples:
                 print(f"Warning: Mod path not found: {mod_path}")
             cmd.extend(["--apply-mod", str(mod_path)])
 
+        # Add API key file from recipe if specified
+        api_key_file = recipe.get("api_key_file")
+        if api_key_file:
+            # Resolve relative to recipe file location (spark-vllm-docker root)
+            resolved_key_path = (SCRIPT_DIR / api_key_file).resolve()
+            if resolved_key_path.exists():
+                cmd.extend(["--api-key-file", str(resolved_key_path)])
+                print(f"API key: loaded from {resolved_key_path}")
+            else:
+                print(f"Warning: API key file not found: {resolved_key_path}")
+
         # Add launch options
         if args.solo:
             cmd.append("--solo")
@@ -1369,6 +1386,9 @@ Examples:
 
         if args.config_file:
             cmd.extend(["--config", args.config_file])
+
+        if args.api_key_file:
+            cmd.extend(["--api-key-file", args.api_key_file])
 
         # Add launch script
         cmd.extend(["--launch-script", temp_script])

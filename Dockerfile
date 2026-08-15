@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 
 # Limit build parallelism to reduce OOM situations
-ARG BUILD_JOBS=16
+ARG BUILD_JOBS=18
 ARG CUDA_IMAGE=nvidia/cuda:13.0.2-devel-ubuntu24.04
 
 # =========================================================
@@ -78,7 +78,7 @@ WORKDIR $VLLM_BASE_DIR
 #     cd nccl && make -j ${BUILD_JOBS} src.build NVCC_GENCODE="-gencode=arch=compute_121,code=sm_121" && \
 #     make pkg.debian.build && apt install -y --no-install-recommends --allow-downgrades ./build/pkg/deb/*.deb
 
-RUN git clone -b v2.30u1 https://github.com/NVIDIA/nccl.git && \
+RUN git clone -b v2.31.2-1 https://github.com/NVIDIA/nccl.git && \
     cd nccl && make -j ${BUILD_JOBS} src.build NVCC_GENCODE="-gencode=arch=compute_121,code=sm_121" && \
     make pkg.debian.build && apt install -y --no-install-recommends --allow-downgrades --allow-change-held-packages ./build/pkg/deb/*.deb
 

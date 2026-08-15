@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-HUB_PATH="${HF_HOME:-$HOME/.cache/huggingface}/hub"
+HUB_PATH="/mnt/hfcache/hub"
 
 # Default values
 COPY_HOSTS=()
